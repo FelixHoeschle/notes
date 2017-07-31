@@ -1,0 +1,139 @@
+##from pyspark.sql import SparkSession
+/Users/fh186009/Documents/training/SparkCourse/my_script.txt
+
+spark = SparkSession.builder.appName(“NameOfApp”).getOrCreate
+
+
+df = spark.read.csv(“train.csv”, header=True)
+df.printSchema()
+df.columns
+df.describe()
+df.show()
+
+## didn’t write down schema
+df['Survived’]  - returns column, show() doesn’t work
+df.select('Survived’) - returns df
+
+df.select([‘Survived’, ‘PassengerID’])
+
+df.withColumn("newage", df["Age"]).show()  - creates new column named newage
+
+df.withColumnRenamed(“Age”,”My_New_Age”)
+
+df.createOrReplaceTempView(‘Titanic’)
+results = spark.sql("Select * from Titanic")
+
+df.filter('Age>50').select(['Age','Name']).show()
+
+df.filter((df['Age']>50) & (df['Age'] < 60)).select(['Age','Name']).show()
+
+results = df.filter((df['Age']>50) & (df['Age'] < 60)).select(['Age','Name']).collect() — the collect() command turns it into a list
+
+row=results[1]
+row.asDict()
+
+—GROUP, ORDER
+df.groupBy('Survived').mean().select([‘Survived’,’avg(Age)’]).show()
+
+df.agg({'Survived':'sum'}).show()
+
+from pyspark.sql.functions import countDistinct, avg, stddev —- press tab to get list
+
+df.agg({'Survived':'stddev'}).show()
+
+df.select(avg('Age').alias('Average Age')).show()
+
+from pyspark.sql.functions import format_number
+
+res.select(format_number('Average Age',2).alias('Age Rounded')).show()
+
+df.orderBy(df['Age'].desc()).show()
+
+— NULL VALUES
+df.na.drop().show()  —drop all rows with missing values
+df.na.drop(thresh=2).show() —at least 2 missing
+df.na.drop(how='all').show() — all empty
+df.na.drop(subset=['Age','Survived']).show(). — drop all that have NAs in these columns
+df.na.fill('No Name',subset=['Column']).show()
+
+Fill with col avg:
+from pyspark.sql.functions import mean
+mean_val = df.select(mean(df['Age’])).collect()
+mean_val[0][0]
+df.na.fill(mean_val[0][0],subset=[‘Age’]).show()
+
+— DATES and TIMESTAMPS
+
+
+— Linear Regression
+from pyspark.ml.regression import LinearRegression
+from pyspark.ml.linalg import Vectors
+from pyspark.ml.feature import VectorAssembler
+
+for item in data.head(2)[1]:
+ print(item)
+
+df.columns
+assembler = VectorAssembler(inputCols=['Avg Session Length', 'Time on App', 'Time on Website', 'Length of Membership'], outputCol='features')
+output = assembler.transform(df)
+final_data = output.select('features','Yearly Amount Spent')
+train, test = final_data.randomSplit([0.7,0.3])
+lr = LinearRegression(labelCol=‘Yearly Amount Spent’)
+model = lr.fit(train)
+evaluate_model = model.evaluate(test)
+evaluate_model.r2
+
+unlabeled_data = test.select('features')
+Predictions = model.transform(unlabeled_data)
+
+— recommender system
+from pyspark.ml.recommendation import ALS
+from pyspark.ml.evaluation import RegressionEvaluator
+df.describe().show()
+train, test = df.randomSplit([0.8,0.2])
+als = ALS(maxIter=5, regParam=0.01, userCol='userId', itemCol='movieId', ratingCol='rating')
+model = als.fit(train)
+predictions = model.transform(test)
+
+evaluator = RegressionEvaluator(metricName='rmse',labelCol='rating',predictionCol='prediction')
+rmse = evaluator.evaluate(predictions)
+
+single_user = test.filter(test['userId']==11).select(['movieID’,’userId'])
+recommendations = model.transform(single_user)
+recommendations.orderBy('prediction', ascending=False).show()
+
+— logistic regression
+Binary classification
+Sigmoid function/logistic function
+Cut off point
+Confusion matrix
+Type 1 Error: False pos
+Type 2 Error: False neg
+Receiver Operator Curve
+True pos rate: Sensitivity
+False pos rate: Specitivity
+Area under curve idealy 1
+
+
+df = df.select(['Survived','Pclass','Age'])
+df = df.na.drop()
+df.describe().show()
+
+from pyspark.ml.feature import VectorAssembler
+assembler = VectorAssembler(inputCols = ['Pclass','Age'], outputCol = ‘features’)
+output = assembler.transform(df)
+final_data = output.select('Survived','features')
+train, test = final_data.randomSplit([0.7, 0.3])
+
+from pyspark.ml.classification import LogisticRegression
+
+model = LogisticRegression(labelCol=‘Survived’)
+fitted_model = model.fit(train)
+log_summary = fitted_model.summary
+log_summary.predictions.show()
+pred_label=fitted_model.evaluate(test)
+pred_label.predictions.show()
+from pyspark.ml.evaluation import BinaryClassificationEvaluator,MultiClassificationEvaluator
+my_eval = BinaryClassificationEvaluator(rawPredictionCol=‘prediction’, labelCol=‘Survived’)
+roc_result = my_eval.evaluate(pred_label.predictions)
+roc_result
