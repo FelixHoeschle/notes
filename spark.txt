@@ -137,3 +137,11 @@ from pyspark.ml.evaluation import BinaryClassificationEvaluator,MultiClassificat
 my_eval = BinaryClassificationEvaluator(rawPredictionCol=‘prediction’, labelCol=‘Survived’)
 roc_result = my_eval.evaluate(pred_label.predictions)
 roc_result
+
+
+## continued
+test = spark.createDataFrame([[2000, 1],
+                              [2000, 2],
+                              [2000, None]],
+                              ["year", "sum"])
+
